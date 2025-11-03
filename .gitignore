@@ -28,5 +28,30 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
+
+# User-specific files
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
+# Sensitive or high-churn files
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+
+# Older format files
+*.iws
+
+# Plugin-specific files
+.idea/**/aws.xml
+.idea/**/watcherTasks.xml
+.idea/**/goLibraries.xml
+.idea/**/sqldialects.xml
+
 # .vscode/
