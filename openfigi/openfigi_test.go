@@ -173,11 +173,12 @@ func TestValidateStream(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
+	var symbolsNeeded uint32 = 10
 	service := NewService()
-	symbols := service.Generate(10)
+	symbols := service.Generate(symbolsNeeded)
 
-	if len(symbols) != 10 {
-		t.Errorf("Expected 0 symbol(s), got %d.", len(symbols))
+	if uint32(len(symbols)) != symbolsNeeded {
+		t.Errorf("Expected %d symbol(s), got %d.", symbolsNeeded, len(symbols))
 	}
 
 	var isValid bool
@@ -188,5 +189,26 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("Expected '%s' to be a valid OpenFIGI symbol, "+
 				"got invalid with the message: %s.", symbol, message)
 		}
+	}
+}
+
+func TestGenerateStream(t *testing.T) {
+	var symbolsNeeded uint32 = 100
+	ctx := context.Background()
+	service := NewService()
+	var symbolCount uint32 = 0
+
+	symbolsChan := service.GenerateStream(ctx, symbolsNeeded)
+	for symbol := range symbolsChan {
+		if isValid, message := service.Validate(symbol); !isValid {
+			t.Errorf("Expected '%s' to be a valid OpenFIGI symbol, "+
+				"got invalid with the message: %s.", symbol, message)
+		}
+
+		symbolCount++
+	}
+
+	if symbolCount != symbolsNeeded {
+		t.Errorf("Expected %d symbol(s), got %d.", symbolsNeeded, symbolCount)
 	}
 }
