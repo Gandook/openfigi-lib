@@ -6,14 +6,20 @@ import (
 	"io"
 	"math/rand"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 	"unicode"
 )
 
-// chanBufferSize is used as the buffer size for the channels returned by ValidateStream and
-// GenerateStream.
-const chanBufferSize = 100
+const (
+	// chanBufferSize is used as the buffer size for the channels returned by ValidateStream and
+	// GenerateStream.
+	chanBufferSize = 100
+	// figiChars is the list of all valid characters in a valid OpenFIGI symbol.
+	// generateChar uses this list to randomly generate a valid character.
+	figiChars = "0123456789BCDFGHJKLMNPQRSTVWXYZ"
+)
 
 // A valid OpenFIGI symbol:
 // 1. Starts with either "BBG" or "KKG".
@@ -39,7 +45,9 @@ type FIGIService interface {
 	// validates them, and returns the results via a channel.
 	ValidateStream(ctx context.Context, reader io.Reader) <-chan ValidationResult
 
-	// Generate(n uint32) []string
+	// Generate generates n new valid OpenFIGI symbols.
+	// Using this method to create a large number of symbols is NOT recommended.
+	Generate(n uint32) []string
 	// GenerateStream(ctx context.Context, n uint32) <-chan string
 }
 
@@ -83,21 +91,26 @@ func charValueWithPos(r rune, pos int) int {
 	}
 }
 
+// getDigitSum calculates the sum of the digits in Luhn's algorithm.
+func getDigitSum(s string) int {
+	digitSum := 0
+	currentCharValue := 0
+
+	for i, r := range s {
+		currentCharValue = charValueWithPos(r, i)
+		digitSum += (currentCharValue / 10) + (currentCharValue % 10)
+	}
+
+	return digitSum
+}
+
 // Validate receives a string and determines if it is a valid OpenFIGI symbol.
 func (d *defaultFIGIService) Validate(figi string) (bool, string) {
 	if !validFIGIPattern.MatchString(figi) {
 		return false, "pattern mismatch"
 	}
 
-	digitSum := 0
-	currentCharValue := 0
-
-	for i, r := range figi {
-		currentCharValue = charValueWithPos(r, i)
-		digitSum += (currentCharValue / 10) + (currentCharValue % 10)
-	}
-
-	if digitSum%10 != 0 {
+	if getDigitSum(figi)%10 != 0 {
 		return false, "invalid checksum"
 	}
 
@@ -138,4 +151,57 @@ func (d *defaultFIGIService) ValidateStream(ctx context.Context, reader io.Reade
 	}()
 
 	return out
+}
+
+// generateChar randomly generates a valid OpenFIGI character.
+func (d *defaultFIGIService) generateChar() byte {
+	d.rngLock.Lock()
+	defer d.rngLock.Unlock()
+
+	return figiChars[d.rng.Intn(31)]
+}
+
+// generateSingle randomly generates a single valid OpenFIGI symbol.
+func (d *defaultFIGIService) generateSingle() string {
+	var sb strings.Builder
+
+	d.rngLock.Lock()
+	if d.rng.Intn(2) == 0 {
+		sb.WriteString("BBG")
+	} else {
+		sb.WriteString("KKG")
+	}
+	d.rngLock.Unlock()
+
+	for i := 0; i < 8; i++ {
+		sb.WriteByte(d.generateChar())
+	}
+
+	digitSum := getDigitSum(sb.String())
+	checksum := (10 - (digitSum % 10)) % 10
+	sb.WriteByte(byte('0' + checksum))
+
+	return sb.String()
+}
+
+// Generate generates n new valid OpenFIGI symbols.
+// Using this method to create a large number of symbols is NOT recommended.
+func (d *defaultFIGIService) Generate(n uint32) []string {
+	isGenerated := make(map[string]bool)
+	result := make([]string, 0, n)
+
+	var newSymbolCandidate string
+
+	for uint32(len(result)) < n {
+		newSymbolCandidate = d.generateSingle()
+
+		if _, exists := isGenerated[newSymbolCandidate]; exists {
+			continue
+		}
+
+		isGenerated[newSymbolCandidate] = true
+		result = append(result, newSymbolCandidate)
+	}
+
+	return result
 }

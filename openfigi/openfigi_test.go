@@ -38,6 +38,20 @@ func TestCharValueWithPos(t *testing.T) {
 	})
 }
 
+func TestGetDigitSum(t *testing.T) {
+	var sum int
+
+	sum = getDigitSum("BBG00HLH6Y37")
+	if sum != 60 {
+		t.Errorf("Expected 60 for 'BBG00HLH6Y37', got %d.", sum)
+	}
+
+	sum = getDigitSum("KKG012C5GMZ0")
+	if sum != 45 {
+		t.Errorf("Expected 45 for 'KKG012C5GMZ0', got %d.", sum)
+	}
+}
+
 func TestValidate(t *testing.T) {
 	t.Run("Valid Symbols", func(t *testing.T) {
 		service := NewService()
@@ -156,4 +170,23 @@ func TestValidateStream(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestGenerate(t *testing.T) {
+	service := NewService()
+	symbols := service.Generate(10)
+
+	if len(symbols) != 10 {
+		t.Errorf("Expected 0 symbol(s), got %d.", len(symbols))
+	}
+
+	var isValid bool
+	var message string
+
+	for _, symbol := range symbols {
+		if isValid, message = service.Validate(symbol); !isValid {
+			t.Errorf("Expected '%s' to be a valid OpenFIGI symbol, "+
+				"got invalid with the message: %s.", symbol, message)
+		}
+	}
 }
