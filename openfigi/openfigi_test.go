@@ -173,11 +173,11 @@ func TestValidateStream(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	var symbolsNeeded uint32 = 10
+	var symbolsNeeded uint = 10
 	service := NewService()
 	symbols := service.Generate(symbolsNeeded)
 
-	if uint32(len(symbols)) != symbolsNeeded {
+	if uint(len(symbols)) != symbolsNeeded {
 		t.Errorf("Expected %d symbol(s), got %d.", symbolsNeeded, len(symbols))
 	}
 
@@ -193,10 +193,10 @@ func TestGenerate(t *testing.T) {
 }
 
 func TestGenerateStream(t *testing.T) {
-	var symbolsNeeded uint32 = 100
+	var symbolsNeeded uint = 100
 	ctx := context.Background()
 	service := NewService()
-	var symbolCount uint32 = 0
+	var symbolCount uint = 0
 
 	symbolsChan := service.GenerateStream(ctx, symbolsNeeded)
 	for symbol := range symbolsChan {

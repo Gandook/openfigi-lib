@@ -47,10 +47,10 @@ type FIGIService interface {
 
 	// Generate generates n new valid OpenFIGI symbols.
 	// Using this method to create a large number of symbols is NOT recommended.
-	Generate(n uint32) []string
+	Generate(n uint) []string
 	// GenerateStream generates n new valid OpenFIGI symbols and returns them via a channel.
 	// This makes it ideal for creating a large number of symbols.
-	GenerateStream(ctx context.Context, n uint32) <-chan string
+	GenerateStream(ctx context.Context, n uint) <-chan string
 }
 
 // defaultFIGIService implements the FIGIService interface.
@@ -188,13 +188,13 @@ func (d *defaultFIGIService) generateSingle() string {
 
 // Generate generates n new valid OpenFIGI symbols.
 // Using this method to create a large number of symbols is NOT recommended.
-func (d *defaultFIGIService) Generate(n uint32) []string {
+func (d *defaultFIGIService) Generate(n uint) []string {
 	isGenerated := make(map[string]bool)
 	result := make([]string, 0, n)
 
 	var newSymbolCandidate string
 
-	for uint32(len(result)) < n {
+	for uint(len(result)) < n {
 		newSymbolCandidate = d.generateSingle()
 
 		if _, exists := isGenerated[newSymbolCandidate]; exists {
@@ -210,7 +210,7 @@ func (d *defaultFIGIService) Generate(n uint32) []string {
 
 // GenerateStream generates n new valid OpenFIGI symbols and returns them via a channel.
 // This makes it ideal for creating a large number of symbols.
-func (d *defaultFIGIService) GenerateStream(ctx context.Context, n uint32) <-chan string {
+func (d *defaultFIGIService) GenerateStream(ctx context.Context, n uint) <-chan string {
 	out := make(chan string, chanBufferSize)
 	isGenerated := make(map[string]bool)
 
@@ -219,7 +219,7 @@ func (d *defaultFIGIService) GenerateStream(ctx context.Context, n uint32) <-cha
 	go func() {
 		defer close(out)
 
-		for uint32(len(isGenerated)) < n {
+		for uint(len(isGenerated)) < n {
 			newSymbolCandidate = d.generateSingle()
 
 			if _, exists := isGenerated[newSymbolCandidate]; exists {
