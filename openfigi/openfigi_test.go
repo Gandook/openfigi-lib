@@ -2,6 +2,7 @@ package openfigi
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 )
@@ -56,68 +57,58 @@ func TestValidate(t *testing.T) {
 	t.Run("Valid Symbols", func(t *testing.T) {
 		service := NewService()
 
-		var valid bool
-		var message string
+		var err error
 
-		if valid, message = service.Validate("BBG00HLH6Y37"); !valid {
-			t.Errorf("Expected 'BBG00HLH6Y37' to be valid, got invalid with the message: %s.", message)
+		if err = service.Validate("BBG00HLH6Y37"); err != nil {
+			t.Errorf("Expected 'BBG00HLH6Y37' to be valid, got invalid with the message: %v.", err)
 		}
 
-		if valid, message = service.Validate("BBG003B5WQD2"); !valid {
-			t.Errorf("Expected 'BBG003B5WQD2' to be valid, got invalid with the message: %s.", message)
+		if err = service.Validate("BBG003B5WQD2"); err != nil {
+			t.Errorf("Expected 'BBG003B5WQD2' to be valid, got invalid with the message: %v.", err)
 		}
 
-		if valid, message = service.Validate("KKG012C5GMZ5"); !valid {
-			t.Errorf("Expected 'KKG012C5GMZ5' to be valid, got invalid with the message: %s.", message)
+		if err = service.Validate("KKG012C5GMZ5"); err != nil {
+			t.Errorf("Expected 'KKG012C5GMZ5' to be valid, got invalid with the message: %v.", err)
 		}
 	})
 
 	t.Run("Invalid Inputs (Pattern Mismatch)", func(t *testing.T) {
 		service := NewService()
 
-		var valid bool
-		var message string
+		var err error
 
-		if valid, message = service.Validate("BKG00HLH6Y37"); message != "pattern mismatch" {
-			t.Errorf("Expected 'BKG00HLH6Y37' to be a pattern mismatch, "+
-				"got %v with the message: %s.", valid, message)
+		if err = service.Validate("BKG00HLH6Y37"); !errors.Is(err, errPatternMismatch) {
+			t.Errorf("Expected 'BKG00HLH6Y37' to be a pattern mismatch, got %v.", err)
 		}
 
-		if valid, message = service.Validate("BBG00HLH6E37"); message != "pattern mismatch" {
-			t.Errorf("Expected 'BBG00HLH6E37' to be a pattern mismatch, "+
-				"got %v with the message: %s.", valid, message)
+		if err = service.Validate("BBG00HLH6E37"); !errors.Is(err, errPatternMismatch) {
+			t.Errorf("Expected 'BBG00HLH6E37' to be a pattern mismatch, got %v.", err)
 		}
 
-		if valid, message = service.Validate("BBG0HLH6Y37"); message != "pattern mismatch" {
-			t.Errorf("Expected 'BBG0HLH6Y37' to be a pattern mismatch, "+
-				"got %v with the message: %s.", valid, message)
+		if err = service.Validate("BBG0HLH6Y37"); !errors.Is(err, errPatternMismatch) {
+			t.Errorf("Expected 'BBG0HLH6Y37' to be a pattern mismatch, got %v.", err)
 		}
 
-		if valid, message = service.Validate("BBG00HLH6Y3H"); message != "pattern mismatch" {
-			t.Errorf("Expected 'BBG00HLH6Y3H' to be a pattern mismatch, "+
-				"got %v with the message: %s.", valid, message)
+		if err = service.Validate("BBG00HLH6Y3H"); !errors.Is(err, errPatternMismatch) {
+			t.Errorf("Expected 'BBG00HLH6Y3H' to be a pattern mismatch, got %v.", err)
 		}
 	})
 
 	t.Run("Invalid Inputs (Checksum Mismatch)", func(t *testing.T) {
 		service := NewService()
 
-		var valid bool
-		var message string
+		var err error
 
-		if valid, message = service.Validate("BBG0088JSC34"); message != "invalid checksum" {
-			t.Errorf("Expected 'BBG0088JSC34' to be a checksum mismatch, "+
-				"got %v with the message: %s.", valid, message)
+		if err = service.Validate("BBG0088JSC34"); !errors.Is(err, errInvalidChecksum) {
+			t.Errorf("Expected 'BBG0088JSC34' to be a checksum mismatch, got %v.", err)
 		}
 
-		if valid, message = service.Validate("BBG01J952TC0"); message != "invalid checksum" {
-			t.Errorf("Expected 'BBG01J952TC0' to be a checksum mismatch, "+
-				"got %v with the message: %s.", valid, message)
+		if err = service.Validate("BBG01J952TC0"); !errors.Is(err, errInvalidChecksum) {
+			t.Errorf("Expected 'BBG01J952TC0' to be a checksum mismatch, got %v.", err)
 		}
 
-		if valid, message = service.Validate("KKG019FZ8N78"); message != "invalid checksum" {
-			t.Errorf("Expected 'KKG019FZ8N78' to be a checksum mismatch, "+
-				"got %v with the message: %s.", valid, message)
+		if err = service.Validate("KKG019FZ8N78"); !errors.Is(err, errInvalidChecksum) {
+			t.Errorf("Expected 'KKG019FZ8N78' to be a checksum mismatch, got %v.", err)
 		}
 	})
 }
@@ -140,9 +131,9 @@ func TestValidateStream(t *testing.T) {
 
 		resultsChan := service.ValidateStream(ctx, file)
 		for result := range resultsChan {
-			if !result.IsValid {
-				t.Errorf("Expected '%s' to be valid, got invalid with the message: %s.",
-					result.Input, result.Message)
+			if result.Error != nil {
+				t.Errorf("Expected '%s' to be valid, got invalid with the message: %v.",
+					result.Input, result.Error)
 			}
 		}
 	})
@@ -164,9 +155,9 @@ func TestValidateStream(t *testing.T) {
 
 		resultsChan := service.ValidateStream(ctx, file)
 		for result := range resultsChan {
-			if result.Message != "invalid checksum" {
-				t.Errorf("Expected '%s' to be a checksum mismatch, "+
-					"got %v with the message: %s.", result.Input, result.IsValid, result.Message)
+			if !errors.Is(result.Error, errInvalidChecksum) {
+				t.Errorf("Expected '%s' to be a checksum mismatch, got %v.",
+					result.Input, result.Error)
 			}
 		}
 	})
@@ -181,13 +172,12 @@ func TestGenerate(t *testing.T) {
 		t.Errorf("Expected %d symbol(s), got %d.", symbolsNeeded, len(symbols))
 	}
 
-	var isValid bool
-	var message string
+	var err error
 
 	for _, symbol := range symbols {
-		if isValid, message = service.Validate(symbol); !isValid {
+		if err = service.Validate(symbol); err != nil {
 			t.Errorf("Expected '%s' to be a valid OpenFIGI symbol, "+
-				"got invalid with the message: %s.", symbol, message)
+				"got invalid with the message: %v.", symbol, err)
 		}
 	}
 }
@@ -200,9 +190,9 @@ func TestGenerateStream(t *testing.T) {
 
 	symbolsChan := service.GenerateStream(ctx, symbolsNeeded)
 	for symbol := range symbolsChan {
-		if isValid, message := service.Validate(symbol); !isValid {
+		if err := service.Validate(symbol); err != nil {
 			t.Errorf("Expected '%s' to be a valid OpenFIGI symbol, "+
-				"got invalid with the message: %s.", symbol, message)
+				"got invalid with the message: %s.", symbol, err)
 		}
 
 		symbolCount++

@@ -77,12 +77,12 @@ func runValidate(svc openfigi.FIGIService, args []string) error {
 		return err
 	}
 
-	isValid, message := svc.Validate(*s)
+	validationErr := svc.Validate(*s)
 
-	if isValid {
+	if validationErr == nil {
 		fmt.Println("Valid")
 	} else {
-		fmt.Printf("Invalid (Reason: %s)\n", message)
+		fmt.Printf("Invalid (Reason: %v)\n", validationErr)
 	}
 
 	return nil
@@ -128,10 +128,10 @@ func runValstream(ctx context.Context, svc openfigi.FIGIService, args []string) 
 			}
 
 			fmt.Printf("%s is ", result.Input)
-			if result.IsValid {
+			if result.Error == nil {
 				fmt.Println("valid")
 			} else {
-				fmt.Printf("invalid (reason: %s)\n", result.Message)
+				fmt.Printf("invalid (reason: %v)\n", result.Error)
 			}
 		}
 	}

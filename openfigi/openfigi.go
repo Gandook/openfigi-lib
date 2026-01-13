@@ -3,13 +3,13 @@ package openfigi
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"math/rand"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 )
 
 const (
@@ -27,30 +27,42 @@ const (
 // 3. Contains a checksum digit at the end.
 var validFIGIPattern = regexp.MustCompile(`^(BB|KK)G[0-9BCDFGHJKLMNPQRSTVWXYZ]{8}[0-9]$`)
 
+// errPatternMismatch is used when a string does not match the valid OpenFIGI pattern.
+var errPatternMismatch = errors.New("pattern mismatch")
+
+// errInvalidChecksum is used when a string is an OpenFIGI symbol but its checksum is incorrect.
+var errInvalidChecksum = errors.New("invalid checksum")
+
 // ValidationResult represents the result of a validation operation.
 // Input is the examined string.
 // IsValid is true if and only if Input is a valid OpenFIGI symbol.
 // Message is a human-readable description of the result. If Input is invalid, Message will
 // contain additional information about the reason.
 type ValidationResult struct {
-	Input   string
-	IsValid bool
-	Message string
+	Input string
+	Error error
 }
 
-type FIGIService interface {
+type FIGIValidator interface {
 	// Validate receives a string and determines if it is a valid OpenFIGI symbol.
-	Validate(figi string) (bool, string)
+	Validate(figi string) error
 	// ValidateStream reads a large number of strings from an external source (e.g., a file),
 	// validates them, and returns the results via a channel.
 	ValidateStream(ctx context.Context, reader io.Reader) <-chan ValidationResult
+}
 
+type FIGIGenerator interface {
 	// Generate generates n new valid OpenFIGI symbols.
 	// Using this method to create a large number of symbols is NOT recommended.
 	Generate(n uint) []string
 	// GenerateStream generates n new valid OpenFIGI symbols and returns them via a channel.
 	// This makes it ideal for creating a large number of symbols.
 	GenerateStream(ctx context.Context, n uint) <-chan string
+}
+
+type FIGIService interface {
+	FIGIValidator
+	FIGIGenerator
 }
 
 // defaultFIGIService implements the FIGIService interface.
@@ -73,7 +85,7 @@ func NewService() FIGIService {
 // The value of a digit is the same as the digit itself.
 // The value of a letter is its (0-based) position in the alphabet + 10 (A = 10, B = 11, etc.).
 func charValue(r rune) int {
-	if unicode.IsDigit(r) {
+	if '0' <= r && r <= '9' {
 		return int(r - '0')
 	} else {
 		return int(r - 'A' + 10)
@@ -107,16 +119,16 @@ func getDigitSum(s string) int {
 }
 
 // Validate receives a string and determines if it is a valid OpenFIGI symbol.
-func (d *defaultFIGIService) Validate(figi string) (bool, string) {
+func (d *defaultFIGIService) Validate(figi string) error {
 	if !validFIGIPattern.MatchString(figi) {
-		return false, "pattern mismatch"
+		return errPatternMismatch
 	}
 
 	if getDigitSum(figi)%10 != 0 {
-		return false, "invalid checksum"
+		return errInvalidChecksum
 	}
 
-	return true, "valid"
+	return nil
 }
 
 // ValidateStream reads a large number of strings from an external source (e.g., a file),
@@ -129,18 +141,17 @@ func (d *defaultFIGIService) ValidateStream(ctx context.Context, reader io.Reade
 
 		scanner := bufio.NewScanner(reader)
 
-		var input, message string
-		var isValid bool
+		var input string
+		var err error
 		var result ValidationResult
 
 		for scanner.Scan() {
 			input = scanner.Text()
-			isValid, message = d.Validate(input)
+			err = d.Validate(input)
 
 			result = ValidationResult{
-				Input:   input,
-				IsValid: isValid,
-				Message: message,
+				Input: input,
+				Error: err,
 			}
 
 			select {
