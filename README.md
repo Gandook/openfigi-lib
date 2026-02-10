@@ -14,7 +14,6 @@ The project is split into a reusable library and a simple command-line wrapper.
 ```text
 /
 ├── go.mod
-├── go.sum
 ├── /openfigi/           <-- The core, reusable library (package openfigi)
 └── /cmd/
     └── /openfigi-cli/   <-- The command-line application (package main)
